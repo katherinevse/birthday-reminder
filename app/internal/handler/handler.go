@@ -146,3 +146,55 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Subscription created successfully"))
 }
+
+// /api/available
+func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
+	log.Println("Handling get available users request")
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
+	claims, err := auth.ParseJWT(authHeader, h.config.JWTSecretKey)
+	if err != nil {
+		log.Println("Error parsing JWT:", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.UserID == 0 {
+		log.Println("Invalid user ID in token")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	users, err := h.repo.GetAvailableUsersForSubscription(claims.UserID)
+	if err != nil {
+		log.Println("Error fetching available users:", err)
+		http.Error(w, "Error fetching available users", http.StatusInternalServerError)
+		return
+	}
+
+	availableUsers := make([]models.AvailableUserResponse, 0, len(users))
+	for _, user := range users {
+		availableUsers = append(availableUsers, models.AvailableUserResponse{
+			ID:          user.ID,
+			Name:        user.Name,
+			Email:       user.Email,
+			DateOfBirth: user.DateOfBirth,
+		})
+	}
+
+	response, err := json.Marshal(availableUsers)
+	if err != nil {
+		log.Println("Error marshalling response:", err)
+		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
+}
