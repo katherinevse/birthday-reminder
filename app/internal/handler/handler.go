@@ -17,6 +17,7 @@ type Repository interface {
 	GetUserByEmail(email string) (*models.User, error)
 	CreateSubscription(userID int, relatedUserID int) error
 	GetAvailableUsersForSubscription(userID int) ([]models.User, error)
+	UnsubscribeUser(userID int, relatedUserID int) error
 }
 
 type Handler struct {
@@ -197,4 +198,51 @@ func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
+}
+
+// /api/unsubscribe
+func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+	log.Println("Handling unsubscribe request")
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
+	claims, err := auth.ParseJWT(authHeader, h.config.JWTSecretKey)
+	if err != nil {
+		log.Println("Error parsing JWT:", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.UserID == 0 {
+		log.Println("Invalid user ID in token")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var reqBody models.SubscribeRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		log.Println("Error decoding request body:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	err = h.repo.UnsubscribeUser(claims.UserID, reqBody.RelatedUserID)
+	if err != nil {
+		if err.Error() == "subscription does not exist" {
+			http.Error(w, "You are not subscribed to this user", http.StatusBadRequest)
+		} else {
+			log.Println("Error unsubscribing user:", err)
+			http.Error(w, "Error unsubscribing user", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	log.Println("Unsubscribed successfully")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Unsubscribed successfully"))
 }

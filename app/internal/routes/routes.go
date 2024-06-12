@@ -14,5 +14,5 @@ func InitRoutes(router *mux.Router, db *pgxpool.Pool) {
 	router.HandleFunc("/api/login", h.Login).Methods("POST")
 	router.HandleFunc("/api/subscribe", h.Subscribe).Methods("POST")
 	router.HandleFunc("/api/available", h.GetAvailableUsers).Methods("GET")
-
+	router.HandleFunc("/api/unsubscribe", h.Unsubscribe).Methods("POST")
 }
