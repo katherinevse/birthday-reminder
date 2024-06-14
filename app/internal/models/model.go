@@ -10,12 +10,6 @@ type User struct {
 	DateOfBirth time.Time `json:"date_of_birth"`
 }
 
-type Subscription struct {
-	ID            int `json:"id"`
-	UserID        int `json:"user_id"`
-	RelatedUserID int `json:"related_user_id"`
-}
-
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

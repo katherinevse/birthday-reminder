@@ -4,8 +4,10 @@ import (
 	"birthdayReminder/app/internal/models"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"time"
 )
 
 //TODO struct создать
@@ -44,7 +46,7 @@ func (r *Repo) GetUserByEmail(email string) (*models.User, error) {
 }
 
 func (r *Repo) CreateSubscription(userID int, relatedUserID int) error {
-	// Проверяем, существует ли уже подписка
+	//проверяем, существует ли подписка
 	queryCheck := `SELECT EXISTS(SELECT 1 FROM subscriptions WHERE user_id=$1 AND related_user_id=$2)`
 	var exists bool
 	err := r.db.QueryRow(context.Background(), queryCheck, userID, relatedUserID).Scan(&exists)
@@ -118,7 +120,66 @@ func (r *Repo) UnsubscribeUser(userID int, relatedUserID int) error {
 	return nil
 }
 
-//user := GetUserByUsername()
-//return models.RegisterResponse{
-//	password: user.Password,
-//}
+func GetUsersWithBirthdayTomorrow(db *pgxpool.Pool) ([]models.User, error) {
+	// Получаем завтрашнюю дату
+	tomorrow := time.Now().AddDate(0, 0, 1)
+	tomorrowMonth := int(tomorrow.Month())
+	tomorrowDay := tomorrow.Day()
+
+	query := `
+		SELECT id, name, email, date_of_birth
+		FROM users
+		WHERE EXTRACT(MONTH FROM date_of_birth) = $1 AND EXTRACT(DAY FROM date_of_birth) = $2
+	`
+	// Выполняем запрос с завтрашним месяцем и днем
+	rows, err := db.Query(context.Background(), query, tomorrowMonth, tomorrowDay)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.DateOfBirth); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func GetSubscribers(userID int, db *pgxpool.Pool) ([]models.User, error) {
+
+	query := ` SELECT u.id, u.name, u.email, u.date_of_birth
+		FROM subscriptions s
+		JOIN users u ON s.user_id = u.id
+		WHERE s.related_user_id = $1
+	`
+
+	rows, err := db.Query(context.Background(), query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subscribers []models.User
+	for rows.Next() {
+		var subscriber models.User
+		if err := rows.Scan(&subscriber.ID, &subscriber.Name, &subscriber.Email, &subscriber.DateOfBirth); err != nil {
+			return nil, err
+		}
+		subscribers = append(subscribers, subscriber)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return subscribers, nil
+}

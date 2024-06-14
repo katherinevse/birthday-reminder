@@ -1,6 +1,7 @@
 package main
 
 import (
+	"birthdayReminder/app/internal/notifications"
 	"birthdayReminder/app/internal/routes"
 	"context"
 	"fmt"
@@ -13,14 +14,16 @@ import (
 func main() {
 	dsn := "postgres://postgres:postgres@localhost:5432/birthdayReminder"
 
-	dbpool, err := pgxpool.Connect(context.Background(), dsn)
+	pool, err := pgxpool.Connect(context.Background(), dsn)
 	if err != nil {
 		log.Fatal("Error connecting to the database:", err)
 	}
-	defer dbpool.Close()
+	defer pool.Close()
+
+	notifications.StartBirthdayNotifier(pool)
 
 	router := mux.NewRouter()
-	routes.InitRoutes(router, dbpool)
+	routes.InitRoutes(router, pool)
 
 	port := ":8080"
 	fmt.Println("Server is running on", port)

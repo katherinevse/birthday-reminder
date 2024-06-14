@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,6 +20,8 @@ type Repository interface {
 	CreateSubscription(userID int, relatedUserID int) error
 	GetAvailableUsersForSubscription(userID int) ([]models.User, error)
 	UnsubscribeUser(userID int, relatedUserID int) error
+	//GetUsersWithBirthdayTomorrow() ([]models.User, error)
+	//GetSubscribers(userID int) ([]models.User, error)
 }
 
 type Handler struct {
@@ -26,17 +30,22 @@ type Handler struct {
 }
 
 func New(repo Repository) *Handler {
-	return &Handler{config: &config.Config{JWTSecretKey: "kjghfdf"}, repo: repo}
+	return &Handler{config: &config.Config{JWTSecretKey: os.Getenv("JWT_SECRET_KEY")}, repo: repo}
 }
 
-// /api/registration
+// Register /api/registration
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing request body: %v", err)
+		}
+	}(r.Body)
 
 	if user.Name == "" || user.Email == "" || user.Password == "" || user.DateOfBirth.IsZero() {
 		http.Error(w, "Invalid user data", http.StatusBadRequest)
@@ -49,7 +58,6 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Вызываем метод для выполнения запроса к базе данных
 	err = h.repo.CreateUser(&user, hashedPassword)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error saving user to database: %s", err), http.StatusInternalServerError)
@@ -57,17 +65,26 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("User registered successfully"))
+	_, err = w.Write([]byte("User registered successfully"))
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+		return
+	}
 }
 
-// /api/login
+// Login /api/login
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var reqBody models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing request body: %v", err)
+		}
+	}(r.Body)
 
 	dbUser, err := h.repo.GetUserByEmail(reqBody.Email)
 	if err != nil {
@@ -96,7 +113,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Login successful"))
+	_, err = w.Write([]byte("Login successful"))
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+		return
+	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "jwt_token",
@@ -109,10 +130,15 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Login successful"))
+	_, err = w.Write([]byte("Login successful"))
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+
+		return
+	}
 }
 
-// /api/subscribe
+// Subscribe /api/subscribe
 func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 	log.Println("Handling subscription request")
 
@@ -135,7 +161,13 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing request body: %v", err)
+
+		}
+	}(r.Body)
 
 	if err := h.repo.CreateSubscription(claims.UserID, reqBody.RelatedUserID); err != nil {
 		log.Println("Error creating subscription:", err)
@@ -145,10 +177,15 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Subscription created successfully")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Subscription created successfully"))
+	_, err = w.Write([]byte("Subscription created successfully"))
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+
+		return
+	}
 }
 
-// /api/available
+// GetAvailableUsers /api/available
 func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("Handling get available users request")
 
@@ -197,10 +234,15 @@ func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(response)
+	_, err = w.Write(response)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+
+		return
+	}
 }
 
-// /api/unsubscribe
+// Unsubscribe /api/unsubscribe
 func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	log.Println("Handling unsubscribe request")
 
@@ -229,7 +271,13 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing request body: %v", err)
+
+		}
+	}(r.Body)
 
 	err = h.repo.UnsubscribeUser(claims.UserID, reqBody.RelatedUserID)
 	if err != nil {
@@ -244,5 +292,10 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Unsubscribed successfully")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Unsubscribed successfully"))
+	_, err = w.Write([]byte("Unsubscribed successfully"))
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+
+		return
+	}
 }

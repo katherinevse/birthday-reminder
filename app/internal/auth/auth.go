@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 	"log"
@@ -21,8 +22,15 @@ func GenerateJWT(userID int, secretKey string) (string, error) {
 		},
 	}
 
+	// Создаем новый JWT токен с указанными claims и методом подписи HS256
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secretKey))
+
+	// Подписываем токен с использованием секретного ключа и возвращаем подписанную строку токена
+	signedToken, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign JWT token: %v", err)
+	}
+	return signedToken, nil
 }
 
 func ParseJWT(tokenStr string, secretKey string) (*Claims, error) {
@@ -34,12 +42,12 @@ func ParseJWT(tokenStr string, secretKey string) (*Claims, error) {
 
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
-		return nil, errors.New("invalid token") // Возвращаем специальную ошибку
+		return nil, errors.New("invalid token")
 	}
 
 	if !token.Valid {
 		log.Println("Invalid JWT token")
-		return nil, errors.New("invalid token") // Возвращаем специальную ошибку
+		return nil, errors.New("invalid token")
 	}
 
 	return claims, nil
