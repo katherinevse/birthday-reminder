@@ -25,8 +25,8 @@ func main() {
 	userRepo := user.NewRepo(pool)
 	subscriptionRepo := subscription.NewRepo(pool)
 
-	notifier.New(userRepo, subscriptionRepo)
-	//notifier.StartBirthdayNotifier(r)
+	notify := notifier.New(userRepo, subscriptionRepo)
+	notify.StartBirthdayNotifier()
 
 	router := mux.NewRouter()
 	handler.InitRoutes(router, userRepo, subscriptionRepo)

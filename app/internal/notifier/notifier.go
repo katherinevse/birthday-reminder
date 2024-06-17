@@ -34,7 +34,7 @@ func (n *Notifier) StartBirthdayNotifier() {
 
 	s.ChangeLocation(loc)
 
-	_, err = s.Every(1).Day().At("16:33").Do(n.sendBirthdayNotifications)
+	_, err = s.Every(1).Day().At("12:15").Do(n.sendBirthdayNotifications)
 	if err != nil {
 		fmt.Println(err)
 	}
