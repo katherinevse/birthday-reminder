@@ -1,32 +1,23 @@
-package repository
+package user
 
 import (
-	"birthdayReminder/app/internal/models"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"time"
 )
 
-//TODO struct создать
-
-type DBPool interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-}
+// TODO struct создать
+// TODO subscription
 
 type Repo struct {
 	db DBPool
 }
 
-func New(db DBPool) *Repo {
+func NewRepo(db DBPool) *Repo {
 	return &Repo{db: db}
 }
 
-func (r *Repo) CreateUser(user *models.User, hashedPassword []byte) error {
+func (r *Repo) CreateUser(user *User, hashedPassword []byte) error {
 	query := `INSERT INTO users (name, email, password, date_of_birth) VALUES ($1, $2, $3, $4)`
 	_, err := r.db.Exec(context.Background(), query, user.Name, user.Email, hashedPassword, user.DateOfBirth)
 	if err != nil {
@@ -35,8 +26,8 @@ func (r *Repo) CreateUser(user *models.User, hashedPassword []byte) error {
 	return nil
 }
 
-func (r *Repo) GetUserByEmail(email string) (*models.User, error) {
-	var user models.User
+func (r *Repo) GetUserByEmail(email string) (*User, error) {
+	var user User
 	query := `SELECT id, name, email, password, date_of_birth FROM users WHERE email=$1`
 	err := r.db.QueryRow(context.Background(), query, email).Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.DateOfBirth)
 	if err != nil {
@@ -64,7 +55,7 @@ func (r *Repo) CreateSubscription(userID int, relatedUserID int) error {
 	return err
 }
 
-func (r *Repo) GetAvailableUsersForSubscription(userID int) ([]models.User, error) {
+func (r *Repo) GetAvailableUsersForSubscription(userID int) ([]User, error) {
 	query := `
 		SELECT id, name, email, date_of_birth
 		FROM users
@@ -81,9 +72,9 @@ func (r *Repo) GetAvailableUsersForSubscription(userID int) ([]models.User, erro
 	}
 	defer rows.Close()
 
-	var users []models.User
+	var users []User
 	for rows.Next() {
-		var user models.User
+		var user User
 		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.DateOfBirth); err != nil {
 			return nil, err
 		}
@@ -120,7 +111,7 @@ func (r *Repo) UnsubscribeUser(userID int, relatedUserID int) error {
 	return nil
 }
 
-func GetUsersWithBirthdayTomorrow(db *pgxpool.Pool) ([]models.User, error) {
+func (r *Repo) GetUsersWithBirthdayTomorrow() ([]User, error) {
 	// Получаем завтрашнюю дату
 	tomorrow := time.Now().AddDate(0, 0, 1)
 	tomorrowMonth := int(tomorrow.Month())
@@ -132,15 +123,15 @@ func GetUsersWithBirthdayTomorrow(db *pgxpool.Pool) ([]models.User, error) {
 		WHERE EXTRACT(MONTH FROM date_of_birth) = $1 AND EXTRACT(DAY FROM date_of_birth) = $2
 	`
 	// Выполняем запрос с завтрашним месяцем и днем
-	rows, err := db.Query(context.Background(), query, tomorrowMonth, tomorrowDay)
+	rows, err := r.db.Query(context.Background(), query, tomorrowMonth, tomorrowDay)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var users []models.User
+	var users []User
 	for rows.Next() {
-		var user models.User
+		var user User
 		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.DateOfBirth); err != nil {
 			return nil, err
 		}
@@ -154,23 +145,22 @@ func GetUsersWithBirthdayTomorrow(db *pgxpool.Pool) ([]models.User, error) {
 	return users, nil
 }
 
-func GetSubscribers(userID int, db *pgxpool.Pool) ([]models.User, error) {
-
+func (r *Repo) GetSubscribers(userID int) ([]User, error) {
 	query := ` SELECT u.id, u.name, u.email, u.date_of_birth
 		FROM subscriptions s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.related_user_id = $1
 	`
 
-	rows, err := db.Query(context.Background(), query, userID)
+	rows, err := r.db.Query(context.Background(), query, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var subscribers []models.User
+	var subscribers []User
 	for rows.Next() {
-		var subscriber models.User
+		var subscriber User
 		if err := rows.Scan(&subscriber.ID, &subscriber.Name, &subscriber.Email, &subscriber.DateOfBirth); err != nil {
 			return nil, err
 		}

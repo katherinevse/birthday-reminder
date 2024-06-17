@@ -1,8 +1,9 @@
 package main
 
 import (
-	"birthdayReminder/app/internal/notifications"
-	"birthdayReminder/app/internal/routes"
+	"birthdayReminder/app/internal/handler"
+	"birthdayReminder/app/internal/notifier"
+	"birthdayReminder/app/internal/repository/user"
 	"context"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -20,10 +21,14 @@ func main() {
 	}
 	defer pool.Close()
 
-	notifications.StartBirthdayNotifier(pool)
+	userRepo := user.NewRepo(pool)
+	//subcsriptionRepo := subscription.NewRepo(pool)
+
+	notifier.New(userRepo)
+	//notifier.StartBirthdayNotifier(r)
 
 	router := mux.NewRouter()
-	routes.InitRoutes(router, pool)
+	handler.InitRoutes(router, userRepo)
 
 	port := ":8080"
 	fmt.Println("Server is running on", port)

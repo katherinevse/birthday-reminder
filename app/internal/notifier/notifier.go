@@ -1,10 +1,8 @@
-package notifications
+package notifier
 
 import (
-	"birthdayReminder/app/internal/repository"
 	"fmt"
 	"github.com/go-co-op/gocron"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
 	"log"
 	"net/smtp"
@@ -12,7 +10,17 @@ import (
 	"time"
 )
 
-func StartBirthdayNotifier(db *pgxpool.Pool) {
+type Notifier struct {
+	userRepo Repository
+}
+
+func New(userRepo Repository) Notifier {
+	return Notifier{
+		userRepo: userRepo,
+	}
+}
+
+func (n *Notifier) StartBirthdayNotifier() {
 	log.Println("Initializing the scheduler")
 	s := gocron.NewScheduler(time.UTC)
 
@@ -24,7 +32,7 @@ func StartBirthdayNotifier(db *pgxpool.Pool) {
 
 	s.ChangeLocation(loc)
 
-	_, err = s.Every(1).Day().At("11:06").Do(SendBirthdayNotifications, db)
+	_, err = s.Every(1).Day().At("16:33").Do(n.sendBirthdayNotifications)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -32,8 +40,8 @@ func StartBirthdayNotifier(db *pgxpool.Pool) {
 	s.StartAsync()
 }
 
-func SendBirthdayNotifications(db *pgxpool.Pool) {
-	users, err := repository.GetUsersWithBirthdayTomorrow(db)
+func (n *Notifier) sendBirthdayNotifications() {
+	users, err := n.userRepo.GetUsersWithBirthdayTomorrow()
 	if err != nil {
 		log.Println("Error fetching users with birthday tomorrow:", err)
 		return
@@ -45,7 +53,7 @@ func SendBirthdayNotifications(db *pgxpool.Pool) {
 	}
 
 	for _, user := range users {
-		subscribers, err := repository.GetSubscribers(user.ID, db)
+		subscribers, err := n.userRepo.GetSubscribers(user.ID)
 		if err != nil {
 			log.Println("Error fetching subscribers for user ID:", user.ID, "-", err)
 			continue
@@ -60,7 +68,7 @@ func SendBirthdayNotifications(db *pgxpool.Pool) {
 		message := "Завтра день рождения у " + user.Name + "!" +
 			"Не забудьте поздравить!"
 		for _, subscriber := range subscribers {
-			if err := SendMessage(subscriber.Email, subject, message); err != nil {
+			if err := n.sendMessage(subscriber.Email, subject, message); err != nil {
 				log.Println("Error sending email to", subscriber.Email, ":", err)
 				continue
 			}
@@ -69,7 +77,7 @@ func SendBirthdayNotifications(db *pgxpool.Pool) {
 	}
 }
 
-func SendMessage(email, subject, message string) error {
+func (n *Notifier) sendMessage(email, subject, message string) error {
 	if err := godotenv.Load(); err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
 	}

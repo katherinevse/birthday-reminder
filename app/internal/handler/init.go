@@ -1,15 +1,11 @@
-package routes
+package handler
 
 import (
-	"birthdayReminder/app/internal/handler"
-	"birthdayReminder/app/internal/repository"
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func InitRoutes(router *mux.Router, db *pgxpool.Pool) {
-	r := repository.New(db)
-	h := handler.New(r)
+func InitRoutes(router *mux.Router, userRepo Repository) {
+	h := New(userRepo)
 	router.HandleFunc("/api/registration", h.Register).Methods("POST")
 	router.HandleFunc("/api/login", h.Login).Methods("POST")
 	router.HandleFunc("/api/subscribe", h.Subscribe).Methods("POST")

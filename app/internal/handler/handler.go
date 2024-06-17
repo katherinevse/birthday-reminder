@@ -1,9 +1,11 @@
 package handler
 
 import (
-	"birthdayReminder/app/internal/auth"
-	"birthdayReminder/app/internal/config"
-	"birthdayReminder/app/internal/models"
+	"birthdayReminder/app/internal/handler/auth"
+	"birthdayReminder/app/internal/handler/available_user"
+	"birthdayReminder/app/internal/handler/login"
+	"birthdayReminder/app/internal/handler/subscribe"
+	"birthdayReminder/app/internal/repository/user"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
@@ -14,28 +16,21 @@ import (
 	"time"
 )
 
-type Repository interface {
-	CreateUser(user *models.User, hashedPassword []byte) error
-	GetUserByEmail(email string) (*models.User, error)
-	CreateSubscription(userID int, relatedUserID int) error
-	GetAvailableUsersForSubscription(userID int) ([]models.User, error)
-	UnsubscribeUser(userID int, relatedUserID int) error
-	//GetUsersWithBirthdayTomorrow() ([]models.User, error)
-	//GetSubscribers(userID int) ([]models.User, error)
-}
+// TODO - проверить формат даты
+// TODO добавить логи
 
 type Handler struct {
-	config *config.Config
-	repo   Repository
+	JWTSecretKey string
+	repo         Repository
 }
 
 func New(repo Repository) *Handler {
-	return &Handler{config: &config.Config{JWTSecretKey: os.Getenv("JWT_SECRET_KEY")}, repo: repo}
+	return &Handler{JWTSecretKey: os.Getenv("JWT_SECRET_KEY"), repo: repo}
 }
 
 // Register /api/registration
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	var user models.User
+	var user user.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
@@ -74,7 +69,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login /api/login
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	var reqBody models.LoginRequest
+	var reqBody login.Dto
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
@@ -97,11 +92,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString, err := auth.GenerateJWT(dbUser.ID, h.config.JWTSecretKey)
+	tokenString, err := auth.GenerateJWT(dbUser.ID, h.JWTSecretKey)
 	if err != nil {
 		http.Error(w, "Failed to generate JWT token", http.StatusInternalServerError)
 		return
 	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "jwt_token",
 		Value:    tokenString,
@@ -148,14 +144,14 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ParseJWT(tokenStr, h.config.JWTSecretKey)
+	claims, err := auth.ParseJWT(tokenStr, h.JWTSecretKey)
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	var reqBody models.SubscribeRequest
+	var reqBody subscribe.RequestDto
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		log.Println("Error decoding request body:", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -195,7 +191,7 @@ func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ParseJWT(authHeader, h.config.JWTSecretKey)
+	claims, err := auth.ParseJWT(authHeader, h.JWTSecretKey)
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -215,9 +211,9 @@ func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	availableUsers := make([]models.AvailableUserResponse, 0, len(users))
+	availableUsers := make([]available_user.ResponseDto, 0, len(users))
 	for _, user := range users {
-		availableUsers = append(availableUsers, models.AvailableUserResponse{
+		availableUsers = append(availableUsers, available_user.ResponseDto{
 			ID:          user.ID,
 			Name:        user.Name,
 			Email:       user.Email,
@@ -252,7 +248,7 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ParseJWT(authHeader, h.config.JWTSecretKey)
+	claims, err := auth.ParseJWT(authHeader, h.JWTSecretKey)
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -265,7 +261,7 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reqBody models.SubscribeRequest
+	var reqBody subscribe.RequestDto
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		log.Println("Error decoding request body:", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)

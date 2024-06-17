@@ -7,7 +7,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE subscriptions (
-   id SERIAL PRIMARY KEY,
-   user_id INT NOT NULL REFERENCES users(id),
-   related_user_id INT NOT NULL REFERENCES users(id)
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id),
+    related_user_id INT NOT NULL REFERENCES users(id)
 );
