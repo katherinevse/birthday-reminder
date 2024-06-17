@@ -11,12 +11,14 @@ import (
 )
 
 type Notifier struct {
-	userRepo Repository
+	userRepo         UserRepository
+	subscriptionRepo SubscriptionRepository
 }
 
-func New(userRepo Repository) Notifier {
+func New(userRepo UserRepository, subscriptionRepo SubscriptionRepository) Notifier {
 	return Notifier{
-		userRepo: userRepo,
+		userRepo:         userRepo,
+		subscriptionRepo: subscriptionRepo,
 	}
 }
 

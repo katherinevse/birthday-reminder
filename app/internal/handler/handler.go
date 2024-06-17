@@ -20,12 +20,13 @@ import (
 // TODO добавить логи
 
 type Handler struct {
-	JWTSecretKey string
-	repo         Repository
+	JWTSecretKey     string
+	userRepo         UserRepository
+	subscriptionRepo SubscriptionRepository
 }
 
-func New(repo Repository) *Handler {
-	return &Handler{JWTSecretKey: os.Getenv("JWT_SECRET_KEY"), repo: repo}
+func New(userRepo UserRepository, subscriptionRepo SubscriptionRepository) *Handler {
+	return &Handler{JWTSecretKey: os.Getenv("JWT_SECRET_KEY"), userRepo: userRepo, subscriptionRepo: subscriptionRepo}
 }
 
 // Register /api/registration
@@ -53,7 +54,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.repo.CreateUser(&user, hashedPassword)
+	err = h.userRepo.CreateUser(&user, hashedPassword)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error saving user to database: %s", err), http.StatusInternalServerError)
 		return
@@ -81,7 +82,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 	}(r.Body)
 
-	dbUser, err := h.repo.GetUserByEmail(reqBody.Email)
+	dbUser, err := h.userRepo.GetUserByEmail(reqBody.Email)
 	if err != nil {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
@@ -112,24 +113,6 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write([]byte("Login successful"))
 	if err != nil {
 		log.Printf("Error writing response: %v", err)
-		return
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "jwt_token",
-		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour),
-		Path:     "/",
-		SameSite: http.SameSiteStrictMode,
-		HttpOnly: true,
-		Secure:   true,
-	})
-
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte("Login successful"))
-	if err != nil {
-		log.Printf("Error writing response: %v", err)
-
 		return
 	}
 }
@@ -165,7 +148,7 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 	}(r.Body)
 
-	if err := h.repo.CreateSubscription(claims.UserID, reqBody.RelatedUserID); err != nil {
+	if err := h.subscriptionRepo.CreateSubscription(claims.UserID, reqBody.RelatedUserID); err != nil {
 		log.Println("Error creating subscription:", err)
 		http.Error(w, "Error creating subscription", http.StatusInternalServerError)
 		return
@@ -204,7 +187,7 @@ func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := h.repo.GetAvailableUsersForSubscription(claims.UserID)
+	users, err := h.userRepo.GetAvailableUsersForSubscription(claims.UserID)
 	if err != nil {
 		log.Println("Error fetching available users:", err)
 		http.Error(w, "Error fetching available users", http.StatusInternalServerError)
@@ -275,7 +258,7 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		}
 	}(r.Body)
 
-	err = h.repo.UnsubscribeUser(claims.UserID, reqBody.RelatedUserID)
+	err = h.subscriptionRepo.UnsubscribeUser(claims.UserID, reqBody.RelatedUserID)
 	if err != nil {
 		if err.Error() == "subscription does not exist" {
 			http.Error(w, "You are not subscribed to this user", http.StatusBadRequest)

@@ -4,8 +4,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func InitRoutes(router *mux.Router, userRepo Repository) {
-	h := New(userRepo)
+func InitRoutes(router *mux.Router, userRepo UserRepository, subscriptionRepo SubscriptionRepository) {
+	h := New(userRepo, subscriptionRepo)
 	router.HandleFunc("/api/registration", h.Register).Methods("POST")
 	router.HandleFunc("/api/login", h.Login).Methods("POST")
 	router.HandleFunc("/api/subscribe", h.Subscribe).Methods("POST")
