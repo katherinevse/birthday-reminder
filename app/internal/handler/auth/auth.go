@@ -8,12 +8,15 @@ import (
 	"time"
 )
 
+type TokenService struct {
+}
+
 type Claims struct {
 	UserID int `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID int, secretKey string) (string, error) {
+func (t *TokenService) GenerateJWT(userID int, secretKey string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		UserID: userID,
@@ -33,7 +36,7 @@ func GenerateJWT(userID int, secretKey string) (string, error) {
 	return signedToken, nil
 }
 
-func ParseJWT(tokenStr string, secretKey string) (*Claims, error) {
+func (t *TokenService) ParseJWT(tokenStr string, secretKey string) (*Claims, error) {
 	claims := &Claims{}
 	// ParseWithClaims разбирает токен и заполняет структуру claims.
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {

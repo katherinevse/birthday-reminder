@@ -23,10 +23,11 @@ type Handler struct {
 	JWTSecretKey     string
 	userRepo         UserRepository
 	subscriptionRepo SubscriptionRepository
+	tokenManager     auth.TokenManager
 }
 
-func New(userRepo UserRepository, subscriptionRepo SubscriptionRepository) *Handler {
-	return &Handler{JWTSecretKey: os.Getenv("JWT_SECRET_KEY"), userRepo: userRepo, subscriptionRepo: subscriptionRepo}
+func New(userRepo UserRepository, subscriptionRepo SubscriptionRepository, tokenManager auth.TokenManager) *Handler {
+	return &Handler{JWTSecretKey: os.Getenv("JWT_SECRET_KEY"), userRepo: userRepo, subscriptionRepo: subscriptionRepo, tokenManager: tokenManager}
 }
 
 // Register /api/registration
@@ -93,7 +94,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString, err := auth.GenerateJWT(dbUser.ID, h.JWTSecretKey)
+	tokenString, err := h.tokenManager.GenerateJWT(dbUser.ID, h.JWTSecretKey)
 	if err != nil {
 		http.Error(w, "Failed to generate JWT token", http.StatusInternalServerError)
 		return
@@ -127,7 +128,7 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ParseJWT(tokenStr, h.JWTSecretKey)
+	claims, err := h.tokenManager.ParseJWT(tokenStr, h.JWTSecretKey)
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -174,7 +175,7 @@ func (h *Handler) GetAvailableUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ParseJWT(authHeader, h.JWTSecretKey)
+	claims, err := h.tokenManager.ParseJWT(authHeader, h.JWTSecretKey)
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -231,7 +232,7 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ParseJWT(authHeader, h.JWTSecretKey)
+	claims, err := h.tokenManager.ParseJWT(authHeader, h.JWTSecretKey)
 	if err != nil {
 		log.Println("Error parsing JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
