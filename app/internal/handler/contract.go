@@ -4,6 +4,7 @@ import (
 	"birthdayReminder/app/internal/repository/user"
 )
 
+//go:generate mockgen -source=contract.go -destination=mocks/mockRepo.go
 type UserRepository interface {
 	CreateUser(user *user.User, hashedPassword []byte) error
 	GetUserByEmail(email string) (*user.User, error)
