@@ -80,6 +80,25 @@ curl -X POST http://localhost:8080/api/subscribe \
 
 ```
 
+### Отписка от пользователя
+
+
+**URL:** `/api/unsubscribe`  
+**Метод:** `POST`  
+**Описание:** Удаляет подписку на пользователя. Требуется JWT токен в заголовке Authorization
+
+
+**Пример запроса:**
+```sh
+curl -X POST http://localhost:8080/api/unsubscribe \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer <JWT_TOKEN>" \
+    -d '{
+          "related_user_id": 2
+        }'
+
+```
+
 ### Получение доступных для подписки пользователей
 
 
