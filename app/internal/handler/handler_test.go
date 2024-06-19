@@ -122,14 +122,36 @@ func TestLogin(t *testing.T) {
 			name:    "Invalid password",
 			payload: login.Dto{Email: "john@example.com", Password: "wrongpassword"},
 			setupMock: func(mockUserRepo *mock_handler.MockUserRepository, mockTokenManager *mock_auth.MockTokenManager) {
-				dbUser := &user.User{Email: "john@example.com", Password: "$2a$10$7wZT5nNPo8/W9cC5ZjJrBu57oG6e8CxPf49E7NmBztG7vZKbA35Oe"}
+				dbUser := &user.User{Email: "john@example.com", Password: "$2a$10$7wZT5nNPo8/W9cC5ZjJrBu57oG6e8CxPf49E7NmBztG7vZKbA35Oe"} // Пароль: password
 				mockUserRepo.EXPECT().GetUserByEmail("john@example.com").Return(dbUser, nil)
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectedOutput: "Invalid email or password",
 		},
-		// TODO add testcases
+		{
+			name:    "Failed to generate JWT token",
+			payload: login.Dto{Email: "john@example.com", Password: "password"},
+			setupMock: func(mockUserRepo *mock_handler.MockUserRepository, mockTokenManager *mock_auth.MockTokenManager) {
+				dbUser := &user.User{Email: "john@example.com", Password: "$2a$10$7wZT5nNPo8/W9cC5ZjJrBu57oG6e8CxPf49E7NmBztG7vZKbA35Oe"} // Пароль: password
+				mockUserRepo.EXPECT().GetUserByEmail("john@example.com").Return(dbUser, nil)
+				mockTokenManager.EXPECT().GenerateJWT(dbUser.ID, gomock.Any()).Return("", errors.New("failed to generate JWT token"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedOutput: "Failed to generate JWT token",
+		},
+		{
+			name:    "Successful login",
+			payload: login.Dto{Email: "john@example.com", Password: "password"},
+			setupMock: func(mockUserRepo *mock_handler.MockUserRepository, mockTokenManager *mock_auth.MockTokenManager) {
+				dbUser := &user.User{Email: "john@example.com", Password: "$2a$10$7wZT5nNPo8/W9cC5ZjJrBu57oG6e8CxPf49E7NmBztG7vZKbA35Oe"} // Пароль: password
+				mockUserRepo.EXPECT().GetUserByEmail("john@example.com").Return(dbUser, nil)
+				mockTokenManager.EXPECT().GenerateJWT(dbUser.ID, gomock.Any()).Return("mock_jwt_token", nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedOutput: "Login successful",
+		},
 	}
+
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -137,11 +159,15 @@ func TestLogin(t *testing.T) {
 
 			mockUserRepo := mock_handler.NewMockUserRepository(ctrl)
 			mockTokenManager := mock_auth.NewMockTokenManager(ctrl)
-			handler := &Handler{userRepo: mockUserRepo, JWTSecretKey: "secret"}
+			handler := &Handler{userRepo: mockUserRepo, tokenManager: mockTokenManager, JWTSecretKey: "secret"}
 
 			tt.setupMock(mockUserRepo, mockTokenManager)
 
-			reqBody, _ := json.Marshal(tt.payload)
+			reqBody, err := json.Marshal(tt.payload)
+			if err != nil {
+				t.Fatalf("Failed to marshal request body: %v", err)
+			}
+
 			req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(reqBody))
 			w := httptest.NewRecorder()
 
@@ -152,7 +178,11 @@ func TestLogin(t *testing.T) {
 
 			assert.Equal(t, tt.expectedStatus, res.StatusCode)
 
-			body, _ := io.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body: %v", err)
+			}
+
 			assert.Contains(t, string(body), tt.expectedOutput)
 		})
 	}
@@ -385,17 +415,6 @@ func TestUnsubscribe(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 			expectedOutput: "Unauthorized\n",
 		},
-		//{
-		//	name:        "Error decoding request body",
-		//	token:       "valid.token",
-		//	requestBody: subscribe.RequestDto{}, // Пустой экземпляр структуры
-		//	setupMock: func(mockSubscriptionRepo *mock_handler.MockSubscriptionRepository, mockTokenManager *mock_auth.MockTokenManager) {
-		//		mockTokenManager.EXPECT().ParseJWT("valid.token", "secret").Return(&auth.Claims{UserID: 1}, nil)
-		//	},
-		//	expectedStatus: http.StatusBadRequest,
-		//	expectedOutput: "Invalid request payload\n",
-		//},
-
 		{
 			name:  "Subscription does not exist",
 			token: "valid.token",
