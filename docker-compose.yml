@@ -1,0 +1,37 @@
+version: '3.8'
+
+networks:
+  birthday_net:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:alpine3.18
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./app/db/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    container_name: birthday_db
+    networks:
+      - birthday_net
+
+  app:
+    container_name: birthday_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - birthday_net

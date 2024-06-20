@@ -2,6 +2,7 @@ package main
 
 import (
 	"birthdayReminder/app/internal/handler"
+	"birthdayReminder/app/internal/handler/auth"
 	"birthdayReminder/app/internal/notifier"
 	"birthdayReminder/app/internal/repository/subscription"
 	"birthdayReminder/app/internal/repository/user"
@@ -24,12 +25,13 @@ func main() {
 
 	userRepo := user.NewRepo(pool)
 	subscriptionRepo := subscription.NewRepo(pool)
+	tokenManager := &auth.TokenService{}
 
 	notify := notifier.New(userRepo, subscriptionRepo)
 	notify.StartBirthdayNotifier()
 
 	router := mux.NewRouter()
-	handler.InitRoutes(router, userRepo, subscriptionRepo)
+	handler.InitRoutes(router, userRepo, subscriptionRepo, tokenManager)
 
 	port := ":8080"
 	fmt.Println("Server is running on", port)
