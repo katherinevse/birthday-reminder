@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"birthdayReminder/app/internal/repository/user"
+	"birthdayReminder/internal/repository/user"
 )
 
 //go:generate mockgen -source=contract.go -destination=mocks/mockRepo.go

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"birthdayReminder/app/internal/handler/auth"
+	"birthdayReminder/internal/handler/auth"
 	"github.com/gorilla/mux"
 )
 

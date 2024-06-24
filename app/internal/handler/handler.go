@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"birthdayReminder/app/internal/handler/auth"
-	"birthdayReminder/app/internal/handler/available_user"
-	"birthdayReminder/app/internal/handler/login"
-	"birthdayReminder/app/internal/handler/subscribe"
-	"birthdayReminder/app/internal/repository/user"
+	"birthdayReminder/internal/handler/auth"
+	"birthdayReminder/internal/handler/available_user"
+	"birthdayReminder/internal/handler/login"
+	"birthdayReminder/internal/handler/subscribe"
+	"birthdayReminder/internal/repository/user"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"

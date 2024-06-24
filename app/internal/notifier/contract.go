@@ -1,6 +1,6 @@
 package notifier
 
-import "birthdayReminder/app/internal/repository/user"
+import "birthdayReminder/internal/repository/user"
 
 type UserRepository interface {
 	CreateUser(user *user.User, hashedPassword []byte) error

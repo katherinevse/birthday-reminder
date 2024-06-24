@@ -3,7 +3,6 @@ package notifier
 import (
 	"fmt"
 	"github.com/go-co-op/gocron"
-	"github.com/joho/godotenv"
 	"log"
 	"net/smtp"
 	"os"
@@ -34,7 +33,7 @@ func (n *Notifier) StartBirthdayNotifier() {
 
 	s.ChangeLocation(loc)
 
-	_, err = s.Every(1).Day().At("12:15").Do(n.sendBirthdayNotifications)
+	_, err = s.Every(1).Day().At("12:15").Do(n.SendBirthdayNotifications)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -42,7 +41,7 @@ func (n *Notifier) StartBirthdayNotifier() {
 	s.StartAsync()
 }
 
-func (n *Notifier) sendBirthdayNotifications() {
+func (n *Notifier) SendBirthdayNotifications() {
 	users, err := n.userRepo.GetUsersWithBirthdayTomorrow()
 	if err != nil {
 		log.Println("Error fetching users with birthday tomorrow:", err)
@@ -80,10 +79,6 @@ func (n *Notifier) sendBirthdayNotifications() {
 }
 
 func (n *Notifier) sendMessage(email, subject, message string) error {
-	if err := godotenv.Load(); err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
-
 	smtpHost := "smtp.mail.ru"
 	smtpPort := "587"
 	from := os.Getenv("SMTP_USERNAME")

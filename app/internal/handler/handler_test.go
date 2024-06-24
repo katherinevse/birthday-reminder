@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"birthdayReminder/app/internal/handler/auth"
-	mock_auth "birthdayReminder/app/internal/handler/auth/mocks"
-	"birthdayReminder/app/internal/handler/login"
-	mock_handler "birthdayReminder/app/internal/handler/mocks"
-	"birthdayReminder/app/internal/handler/subscribe"
-	"birthdayReminder/app/internal/repository/user"
+	"birthdayReminder/internal/handler/auth"
+	mock_auth "birthdayReminder/internal/handler/auth/mocks"
+	"birthdayReminder/internal/handler/login"
+	mock_handler "birthdayReminder/internal/handler/mocks"
+	"birthdayReminder/internal/handler/subscribe"
+	"birthdayReminder/internal/repository/user"
 	"bytes"
 	"encoding/json"
 	"errors"
